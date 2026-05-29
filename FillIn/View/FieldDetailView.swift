@@ -91,20 +91,6 @@ struct FieldDetailView: View {
 
                         Divider().background(Color.white.opacity(0.1))
 
-                        Button {
-                            let url = URL(string: "maps://?ll=\(field.latitude),\(field.longitude)&q=\(field.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")!
-                            if UIApplication.shared.canOpenURL(url) {
-                                UIApplication.shared.open(url)
-                            }
-                        } label: {
-                            Label("Open in Apple Maps", systemImage: "map")
-                                .font(.subheadline.bold())
-                                .foregroundColor(Color(hex: "3B82F6"))
-                                .frame(maxWidth: .infinity)
-                                .padding(14)
-                                .background(Color(hex: "3B82F6").opacity(0.1))
-                                .cornerRadius(12)
-                        }
                     }
                     .padding(20)
                 }
@@ -168,4 +154,22 @@ struct StatBadge: View {
         .background(Color.white.opacity(0.06))
         .cornerRadius(12)
     }
+}
+
+#Preview {
+    FieldDetailView(field: Field(
+        id: "preview-1",
+        name: "KYZN at Citraland Arena",
+        address: "Northwest Boulevard 1 Jalan CitraLand Utara, Pakal, Surabaya, East Java 60196",
+        sport: .badminton,
+        pricePerHour: 150000,
+        latitude: -7.251968,
+        longitude: 112.615918,
+        openHour: 7,
+        closeHour: 22,
+        ownerId: "admin",
+        imageUrl: "",
+        rating: 4.7,
+        totalReviews: 34
+    ))
 }
