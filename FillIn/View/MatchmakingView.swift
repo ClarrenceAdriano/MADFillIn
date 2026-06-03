@@ -19,7 +19,6 @@ struct MatchmakingView: View {
             Color(hex: "0F172A").ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Header
                 VStack(spacing: 16) {
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
@@ -42,7 +41,6 @@ struct MatchmakingView: View {
                         }
                     }
 
-                    // Sport filter
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             FilterPill(label: "All Sports", isSelected: selectedSport == nil) {
@@ -99,7 +97,7 @@ struct MatchmakingView: View {
             }
         }
         .task { await matchVM.fetchOpenSessions() }
-        .alert("Joined! 🎉", isPresented: $matchVM.joinSuccess) {
+        .alert("Joined! ", isPresented: $matchVM.joinSuccess) {
             Button("OK") { matchVM.joinSuccess = false }
         } message: {
             Text("You've successfully joined the session. Check My Bookings for details.")
@@ -112,7 +110,6 @@ struct MatchmakingView: View {
     }
 }
 
-// MARK: - Match Session Card
 struct MatchSessionCard: View {
     var session: Booking
     var onJoin: () -> Void
@@ -124,7 +121,6 @@ struct MatchSessionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // Top: field name + sport badge
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session.fieldName)
@@ -144,7 +140,6 @@ struct MatchSessionCard: View {
                     .cornerRadius(20)
             }
 
-            // Player slots visual
             HStack(spacing: 8) {
                 ForEach(0..<session.maxPlayers, id: \.self) { i in
                     ZStack {
@@ -172,7 +167,6 @@ struct MatchSessionCard: View {
 
             Divider().background(Color.white.opacity(0.08))
 
-            // Host + price + join button
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Host: \(session.userName)")

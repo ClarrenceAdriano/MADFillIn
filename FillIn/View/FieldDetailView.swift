@@ -10,9 +10,12 @@ import MapKit
 
 struct FieldDetailView: View {
     var field: Field
+    @EnvironmentObject var authVM: AuthViewModel
     @Environment(\.dismiss) var dismiss
     @State private var region: MKCoordinateRegion
-
+    @State private var showBooking = false
+    @State private var showChat = false
+    
     init(field: Field) {
         self.field = field
         _region = State(initialValue: MKCoordinateRegion(
@@ -20,14 +23,14 @@ struct FieldDetailView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
         ))
     }
-
+    
     var body: some View {
         ZStack(alignment: .top) {
             Color(hex: "0F172A").ignoresSafeArea()
-
+            
             ScrollView {
                 VStack(spacing: 0) {
-
+                    
                     ZStack(alignment: .topLeading) {
                         Map(coordinateRegion: $region, annotationItems: [field]) { f in
                             MapAnnotation(coordinate: f.coordinate) {
@@ -42,8 +45,7 @@ struct FieldDetailView: View {
                             }
                         }
                         .frame(height: 220)
-                        .cornerRadius(0)
-
+                        
                         Button { dismiss() } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .bold))
@@ -55,9 +57,9 @@ struct FieldDetailView: View {
                         .padding(16)
                         .padding(.top, 8)
                     }
-
+                    
                     VStack(alignment: .leading, spacing: 20) {
-
+                        
                         HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(field.name)
@@ -70,36 +72,62 @@ struct FieldDetailView: View {
                             Spacer()
                             VStack(alignment: .trailing, spacing: 4) {
                                 HStack(spacing: 4) {
-                                    Image(systemName: "star.fill")
-                                        .foregroundColor(.yellow)
-                                        .font(.caption)
+                                    Image(systemName: "star.fill").foregroundColor(.yellow).font(.caption)
                                     Text(String(format: "%.1f", field.rating))
-                                        .font(.headline.bold())
-                                        .foregroundColor(.white)
+                                        .font(.headline.bold()).foregroundColor(.white)
                                 }
                                 Text("\(field.totalReviews) reviews")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.4))
+                                    .font(.caption2).foregroundColor(.white.opacity(0.4))
                             }
                         }
-
+                        
                         HStack(spacing: 12) {
                             StatBadge(icon: "clock", label: "Hours", value: "\(field.openHour):00–\(field.closeHour):00")
                             StatBadge(icon: "tag", label: "Per Hour", value: field.priceFormatted)
                             StatBadge(icon: "sportscourt", label: "Sport", value: field.sport.rawValue)
                         }
-
+                        
                         Divider().background(Color.white.opacity(0.1))
-
+                        
+                        Button {
+                            showChat = true
+                        } label: {
+                            Label("Chat with Field Keeper", systemImage: "bubble.left.and.bubble.right")
+                                .font(.subheadline.bold())
+                                .foregroundColor(Color(hex: "3B82F6"))
+                                .frame(maxWidth: .infinity)
+                                .padding(14)
+                                .background(Color(hex: "3B82F6").opacity(0.1))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color(hex: "3B82F6").opacity(0.3), lineWidth: 1)
+                                )
+                        }
+                        
+                        Button {
+                            let urlStr = "maps://?ll=\(field.latitude),\(field.longitude)&q=\(field.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+                            if let url = URL(string: urlStr), UIApplication.shared.canOpenURL(url) {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            Label("Open in Apple Maps", systemImage: "map")
+                                .font(.subheadline.bold())
+                                .foregroundColor(.white.opacity(0.6))
+                                .frame(maxWidth: .infinity)
+                                .padding(14)
+                                .background(Color.white.opacity(0.06))
+                                .cornerRadius(12)
+                        }
                     }
                     .padding(20)
+                    .padding(.bottom, 100)
                 }
             }
-
+            
             VStack {
                 Spacer()
-                Button {
-                } label: {
+                Button { showBooking = true } label: {
                     Text("Book This Field")
                         .font(.headline)
                         .foregroundColor(.white)
@@ -108,18 +136,32 @@ struct FieldDetailView: View {
                         .background(Color(hex: "3B82F6"))
                         .cornerRadius(16)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 32)
                 }
+                .padding(.bottom, 32)
                 .background(
-                    Color(hex: "0F172A")
-                        .ignoresSafeArea()
-                        .frame(height: 100)
-                    , alignment: .bottom
+                    LinearGradient(
+                        colors: [Color(hex: "0F172A").opacity(0), Color(hex: "0F172A")],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(height: 100)
+                    .allowsHitTesting(false),
+                    alignment: .bottom
                 )
             }
         }
+        .sheet(isPresented: $showBooking) {
+            BookingView(field: field)
+                .environmentObject(authVM)
+        }
+        .fullScreenCover(isPresented: $showChat) {
+            if let user = authVM.currentUser {
+                NavigationStack {
+                    ChatView(field: field, currentUser: user)
+                }
+            }
+        }
     }
-
+    
     func iconFor(_ sport: SportType) -> String {
         switch sport {
         case .basketball: return "basketball"
@@ -135,7 +177,7 @@ struct StatBadge: View {
     var icon: String
     var label: String
     var value: String
-
+    
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
@@ -159,12 +201,12 @@ struct StatBadge: View {
 #Preview {
     FieldDetailView(field: Field(
         id: "preview-1",
-        name: "KYZN at Citraland Arena",
-        address: "Northwest Boulevard 1 Jalan CitraLand Utara, Pakal, Surabaya, East Java 60196",
-        sport: .badminton,
+        name: "GOR Bola Basket Ciputra",
+        address: "Jl. Citraland, Surabaya",
+        sport: .basketball,
         pricePerHour: 150000,
-        latitude: -7.251968,
-        longitude: 112.615918,
+        latitude: -7.2878,
+        longitude: 112.6688,
         openHour: 7,
         closeHour: 22,
         ownerId: "admin",
@@ -172,4 +214,5 @@ struct StatBadge: View {
         rating: 4.7,
         totalReviews: 34
     ))
+    .environmentObject(AuthViewModel())
 }

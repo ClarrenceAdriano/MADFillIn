@@ -21,7 +21,6 @@ class MatchmakingViewModel: ObservableObject {
 
     private let db = Firestore.firestore()
 
-    // MARK: - Fetch all open matchmaking sessions
     func fetchOpenSessions(sport: SportType? = nil) async {
         isLoading = true
         do {
@@ -39,7 +38,6 @@ class MatchmakingViewModel: ObservableObject {
             openSessions = snapshot.documents
                 .compactMap { Booking.fromDictionary($0.data(), id: $0.documentID) }
                 .filter { booking in
-                    // Only show sessions with open slots and user hasn't joined
                     booking.playerIds.count < booking.maxPlayers &&
                     !booking.playerIds.contains(uid) &&
                     booking.date >= Date()
@@ -53,7 +51,6 @@ class MatchmakingViewModel: ObservableObject {
         isLoading = false
     }
 
-    // MARK: - Join a session
     func joinSession(_ booking: Booking, user: FillInUser) async {
         isLoading = true
         let newPlayerIds = booking.playerIds + [user.uid]
