@@ -84,3 +84,8 @@ struct CustomTabBar: View {
         )
     }
 }
+
+#Preview {
+    HomeView()
+        .environmentObject(AuthViewModel())
+}
