@@ -136,7 +136,7 @@ struct BookingView: View {
                 .background(Color(hex: "0F172A"))
             }
         }
-        .alert("Booking Confirmed! 🎉", isPresented: $bookingVM.bookingSuccess) {
+        .alert("Booking Confirmed!", isPresented: $bookingVM.bookingSuccess) {
             Button("Done") { dismiss() }
         } message: {
             Text("Your booking for \(field.name) has been confirmed.")
