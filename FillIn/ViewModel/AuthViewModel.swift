@@ -57,11 +57,10 @@ class AuthViewModel: ObservableObject {
     @Published var errorMessage: String = ""
     @Published var showError: Bool = false
 
-    private let auth = Auth.auth()
-    private let db = Firestore.firestore()
+    private let service = AuthService()
 
     init() {
-        auth.addStateDidChangeListener { [weak self] _, user in
+        service.firebaseAuth.addStateDidChangeListener { [weak self] _, user in
             if let user = user {
                 Task { await self?.fetchUser(uid: user.uid) }
             } else {
@@ -75,17 +74,12 @@ class AuthViewModel: ObservableObject {
         isLoading = true
         errorMessage = ""
         do {
-            let result = try await auth.createUser(withEmail: email, password: password)
-            let uid = result.user.uid
-            let newUser = FillInUser(
-                uid: uid,
+            let newUser = try await service.register(
                 fullName: fullName,
                 email: email,
-                sports: sports,
-                createdAt: Date(),
-                role: .user
+                password: password,
+                sports: sports
             )
-            try await db.collection("users").document(uid).setData(newUser.toDictionary())
             self.currentUser = newUser
             self.isLoggedIn = true
         } catch {
@@ -99,8 +93,8 @@ class AuthViewModel: ObservableObject {
         isLoading = true
         errorMessage = ""
         do {
-            let result = try await auth.signIn(withEmail: email, password: password)
-            await fetchUser(uid: result.user.uid)
+            let uid = try await service.login(email: email, password: password)
+            await fetchUser(uid: uid)
         } catch {
             self.errorMessage = error.localizedDescription
             self.showError = true
@@ -109,39 +103,14 @@ class AuthViewModel: ObservableObject {
     }
 
     func logout() {
-        try? auth.signOut()
+        try? service.logout()
         currentUser = nil
         isLoggedIn = false
     }
 
     func fetchUser(uid: String) async {
         do {
-            let doc = try await db.collection("users").document(uid).getDocument()
-            guard let data = doc.data() else { return }
-
-            let fullName = data["fullName"] as? String ?? ""
-            let email = data["email"] as? String ?? ""
-            let sportsRaw = data["sports"] as? [String: String] ?? [:]
-            let timestamp = data["createdAt"] as? Timestamp
-            let roleRaw = data["role"] as? String ?? "user"
-            let role = UserRole(rawValue: roleRaw) ?? .user
-
-            var sports: [SportType: SkillLevel] = [:]
-            for (sportKey, levelValue) in sportsRaw {
-                if let sport = SportType(rawValue: sportKey),
-                   let level = SkillLevel(rawValue: levelValue) {
-                    sports[sport] = level
-                }
-            }
-
-            self.currentUser = FillInUser(
-                uid: uid,
-                fullName: fullName,
-                email: email,
-                sports: sports,
-                createdAt: timestamp?.dateValue() ?? Date(),
-                role: role
-            )
+            self.currentUser = try await service.fetchUser(uid: uid)
             self.isLoggedIn = true
         } catch {
             print("Error fetching user: \(error)")
