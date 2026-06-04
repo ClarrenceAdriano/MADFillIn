@@ -9,12 +9,21 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var authVM = AuthViewModel()
-    
+
     var body: some View {
         Group {
             if authVM.isLoggedIn {
-                HomeView()
-                    .environmentObject(authVM)
+                switch authVM.currentUser?.role {
+                case .superAdmin:
+                    SuperAdminView()
+                        .environmentObject(authVM)
+                case .fieldKeeper:
+                    FieldKeeperView()
+                        .environmentObject(authVM)
+                default:
+                    HomeView()
+                        .environmentObject(authVM)
+                }
             } else {
                 LoginView()
                     .environmentObject(authVM)

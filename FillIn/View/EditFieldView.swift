@@ -51,7 +51,6 @@ struct EditFieldView: View {
                     basicInfoSection
                     locationSection
                     schedulePricingSection
-                    mediaSection
                     saveButton
                 }
                 .padding(.horizontal, 20)
@@ -190,45 +189,6 @@ struct EditFieldView: View {
                     .placeholder(when: pricePerHour.isEmpty) { Text("150000").foregroundColor(.white.opacity(0.25)) }
                     .keyboardType(.numberPad)
                     .fieldInputStyle()
-            }
-        }
-        .sectionCardStyle()
-    }
-
-    private var mediaSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "Media", icon: "photo.fill")
-
-            VStack(alignment: .leading, spacing: 6) {
-                fieldLabel("Image URL")
-                TextField("", text: $imageUrl)
-                    .placeholder(when: imageUrl.isEmpty) { Text("https://example.com/image.jpg").foregroundColor(.white.opacity(0.25)) }
-                    .keyboardType(.URL)
-                    .autocapitalization(.none)
-                    .fieldInputStyle()
-            }
-
-            if !imageUrl.isEmpty, let url = URL(string: imageUrl) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(height: 140)
-                            .cornerRadius(12)
-                            .clipped()
-                    case .failure:
-                        imagePreviewPlaceholder(icon: "exclamationmark.triangle", text: "Failed to load image")
-                    case .empty:
-                        ProgressView()
-                            .tint(accentGreen)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 100)
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
             }
         }
         .sectionCardStyle()

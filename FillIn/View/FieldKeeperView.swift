@@ -323,14 +323,14 @@ struct KeeperFieldsTab: View {
                 }
             }
         }
-//        .sheet(isPresented: $showAddField) {
-//            AddFieldView(keeperVM: keeperVM)
-//                .environmentObject(authVM)
-//        }
-//        .sheet(item: $editingField) { field in
-//            EditFieldView(field: field, keeperVM: keeperVM)
-//                .environmentObject(authVM)
-//        }
+        .sheet(isPresented: $showAddField) {
+            AddFieldView(keeperVM: keeperVM)
+                .environmentObject(authVM)
+        }
+        .sheet(item: $editingField) { field in
+            EditFieldView(field: field, keeperVM: keeperVM)
+                .environmentObject(authVM)
+        }
     }
 }
 
@@ -424,6 +424,7 @@ struct KeeperBookingsTab: View {
     @EnvironmentObject var authVM: AuthViewModel
     @State private var showManualBooking = false
     @State private var statusFilter: BookingStatus? = nil
+    @State private var chatBooking: Booking? = nil
 
     var filtered: [Booking] {
         guard let f = statusFilter else { return keeperVM.myBookings }
@@ -481,7 +482,9 @@ struct KeeperBookingsTab: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(filtered) { booking in
-                                KeeperBookingCard(booking: booking) { status in
+                                KeeperBookingCard(booking: booking, onChat: {
+                                    chatBooking = booking
+                                }) { status in
                                     Task { await keeperVM.updateBookingStatus(booking, status: status) }
                                 }
                             }
@@ -493,15 +496,25 @@ struct KeeperBookingsTab: View {
                 }
             }
         }
-//        .sheet(isPresented: $showManualBooking) {
-//            ManualBookingView(keeperVM: keeperVM)
-//                .environmentObject(authVM)
-//        }
+        .sheet(isPresented: $showManualBooking) {
+            ManualBookingView(keeperVM: keeperVM)
+                .environmentObject(authVM)
+        }
+        .sheet(item: $chatBooking) { booking in
+            if let field = keeperVM.myFields.first(where: { $0.id == booking.fieldId }),
+               let user = authVM.currentUser {
+                ChatView(
+                    field: field,
+                    currentUser: user
+                )
+            }
+        }
     }
 }
 
 struct KeeperBookingCard: View {
     var booking: Booking
+    var onChat: () -> Void
     var onUpdateStatus: (BookingStatus) -> Void
 
     var statusColor: Color {
@@ -543,6 +556,21 @@ struct KeeperBookingCard: View {
                 Label("\(booking.playerIds.count) player(s)", systemImage: "person.2")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.6))
+            }
+
+            // Chat button
+            Button(action: onChat) {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.left.fill")
+                        .font(.caption)
+                    Text("Chat")
+                        .font(.caption.bold())
+                }
+                .foregroundColor(Color(hex: "3B82F6"))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Color(hex: "3B82F6").opacity(0.1))
+                .cornerRadius(8)
             }
 
             HStack {

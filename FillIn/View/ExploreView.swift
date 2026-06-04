@@ -94,7 +94,7 @@ struct ExploreView: View {
         }
         .onAppear {
             if fieldVM.fields.isEmpty {
-                Task { await fieldVM.seedDummyFields() }
+                Task { await fieldVM.fetchFields() }
             }
         }
     }
