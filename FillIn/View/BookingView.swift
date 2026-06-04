@@ -304,7 +304,7 @@ struct BookingView: View {
             startHour: start,
             endHour: end,
             isMatchmaking: isMatchmaking,
-            maxPlayers: maxPlayers,
+            maxPlayers: isMatchmaking ? maxPlayers : 1,
             currentUser: user
         )
     }

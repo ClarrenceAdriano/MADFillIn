@@ -23,7 +23,6 @@ struct MyBookingsView: View {
             Color(hex: "0F172A").ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Header
                 VStack(spacing: 16) {
                     HStack {
                         Text("My Bookings")
@@ -144,7 +143,9 @@ struct BookingCard: View {
             HStack(spacing: 20) {
                 BookingInfoItem(icon: "calendar", text: booking.dateFormatted)
                 BookingInfoItem(icon: "clock", text: booking.timeFormatted)
-                BookingInfoItem(icon: "person.2", text: "\(booking.playerIds.count)/\(booking.maxPlayers)")
+                if booking.isMatchmaking {
+                    BookingInfoItem(icon: "person.2", text: "\(booking.playerIds.count)/\(booking.maxPlayers)")
+                }
             }
 
             HStack {
