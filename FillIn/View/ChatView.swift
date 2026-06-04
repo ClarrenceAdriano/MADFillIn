@@ -286,7 +286,8 @@ struct RoundedCorner: Shape {
         fullName: "Dylan Patrick",
         email: "dylan@email.com",
         sports: [.basketball: .pro],
-        createdAt: Date()
+        createdAt: Date(),
+        role: .user
     )
 
     ChatView(field: dummyField, currentUser: dummyUser)
