@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import FirebaseFirestore
 import Combine
 
 @MainActor
@@ -18,36 +17,12 @@ class SuperAdminViewModel: ObservableObject {
     @Published var successMessage = ""
     @Published var showSuccess = false
 
-    private let db = Firestore.firestore()
+    private let service = UserService()
 
     func fetchAllUsers() async {
         isLoading = true
         do {
-            let snapshot = try await db.collection("users").getDocuments()
-            allUsers = snapshot.documents.compactMap { doc -> FillInUser? in
-                let data = doc.data()
-                let roleRaw = data["role"] as? String ?? "user"
-                let role = UserRole(rawValue: roleRaw) ?? .user
-                let sportsRaw = data["sports"] as? [String: String] ?? [:]
-                let timestamp = data["createdAt"] as? Timestamp
-
-                var sports: [SportType: SkillLevel] = [:]
-                for (k, v) in sportsRaw {
-                    if let sport = SportType(rawValue: k), let level = SkillLevel(rawValue: v) {
-                        sports[sport] = level
-                    }
-                }
-
-                return FillInUser(
-                    uid: data["uid"] as? String ?? doc.documentID,
-                    fullName: data["fullName"] as? String ?? "",
-                    email: data["email"] as? String ?? "",
-                    sports: sports,
-                    createdAt: timestamp?.dateValue() ?? Date(),
-                    role: role
-                )
-            }
-            .sorted { $0.fullName < $1.fullName }
+            allUsers = try await service.fetchAllUsers()
         } catch {
             errorMessage = error.localizedDescription
             showError = true
@@ -57,9 +32,7 @@ class SuperAdminViewModel: ObservableObject {
 
     func changeRole(uid: String, to role: UserRole) async {
         do {
-            try await db.collection("users").document(uid).updateData([
-                "role": role.rawValue
-            ])
+            try await service.changeRole(uid: uid, to: role)
             successMessage = "Role updated to \(role.rawValue) successfully!"
             showSuccess = true
             await fetchAllUsers()
@@ -71,7 +44,7 @@ class SuperAdminViewModel: ObservableObject {
 
     func deleteUser(uid: String) async {
         do {
-            try await db.collection("users").document(uid).delete()
+            try await service.deleteUser(uid: uid)
             successMessage = "User removed successfully."
             showSuccess = true
             await fetchAllUsers()
