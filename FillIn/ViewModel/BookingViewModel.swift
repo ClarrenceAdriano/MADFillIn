@@ -19,18 +19,13 @@ class BookingViewModel: ObservableObject {
     @Published var errorMessage = ""
     @Published var showError = false
 
-    private let db = Firestore.firestore()
+    private let service = BookingService()
 
     func fetchMyBookings() async {
         guard let uid = Auth.auth().currentUser?.uid else { return }
         isLoading = true
         do {
-            let snapshot = try await db.collection("bookings")
-                .whereField("playerIds", arrayContains: uid)
-                .getDocuments()
-            myBookings = snapshot.documents.compactMap {
-                Booking.fromDictionary($0.data(), id: $0.documentID)
-            }.sorted { $0.date > $1.date }
+            myBookings = try await service.fetchMyBookings(uid: uid)
         } catch {
             errorMessage = error.localizedDescription
             showError = true
@@ -39,24 +34,13 @@ class BookingViewModel: ObservableObject {
     }
 
     func fetchAvailableSlots(fieldId: String, date: Date, openHour: Int, closeHour: Int) async {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: date)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-
         do {
-            let snapshot = try await db.collection("bookings")
-                .whereField("fieldId", isEqualTo: fieldId)
-                .whereField("date", isGreaterThanOrEqualTo: Timestamp(date: startOfDay))
-                .whereField("date", isLessThan: Timestamp(date: endOfDay))
-                .getDocuments()
-
-            let bookedHours = snapshot.documents.compactMap {
-                Booking.fromDictionary($0.data(), id: $0.documentID)
-            }.flatMap { booking in
-                (booking.startHour..<booking.endHour).map { $0 }
-            }
-
-            availableSlots = (openHour..<closeHour).filter { !bookedHours.contains($0) }
+            availableSlots = try await service.fetchAvailableSlots(
+                fieldId: fieldId,
+                date: date,
+                openHour: openHour,
+                closeHour: closeHour
+            )
         } catch {
             availableSlots = Array(openHour..<closeHour)
         }
@@ -96,7 +80,7 @@ class BookingViewModel: ObservableObject {
         )
 
         do {
-            try await db.collection("bookings").document(bookingId).setData(booking.toDictionary())
+            try await service.createBooking(booking)
             bookingSuccess = true
             await fetchMyBookings()
         } catch {
@@ -108,9 +92,7 @@ class BookingViewModel: ObservableObject {
 
     func cancelBooking(_ booking: Booking) async {
         do {
-            try await db.collection("bookings").document(booking.id).updateData([
-                "status": BookingStatus.cancelled.rawValue
-            ])
+            try await service.cancelBooking(id: booking.id)
             await fetchMyBookings()
         } catch {
             errorMessage = error.localizedDescription
