@@ -21,7 +21,7 @@ class FieldViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var isLoading = false
     @Published var selectedField: Field? = nil
 
-    private let db = Firestore.firestore()
+    private let service = FieldService()
     private let locationManager = CLLocationManager()
 
     override init() {
@@ -36,11 +36,7 @@ class FieldViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     func fetchFields() async {
         isLoading = true
         do {
-            let snapshot = try await db.collection("fields").getDocuments()
-            let fetched = snapshot.documents.compactMap {
-                Field.fromDictionary($0.data(), id: $0.documentID)
-            }
-            self.fields = fetched
+            fields = try await service.fetchFields()
             applyFilters()
         } catch {
             print("Error fetching fields: \(error)")
@@ -69,7 +65,6 @@ class FieldViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         selectedSport = sport
         applyFilters()
     }
-
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
