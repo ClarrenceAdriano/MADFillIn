@@ -100,6 +100,30 @@ class ChatViewModel: ObservableObject {
         return roomId
     }
 
+    /// Opens a chat room based on a booking — always uses the booking's userId
+    /// so both keeper and user connect to the same room.
+    func openChatRoomForBooking(booking: Booking, currentUser: FillInUser) async -> String {
+        let roomId = "\(booking.fieldId)_\(booking.userId)"
+
+        let room = ChatRoom(
+            id: roomId,
+            fieldId: booking.fieldId,
+            fieldName: booking.fieldName,
+            userId: booking.userId,
+            userName: booking.userName,
+            keeperId: currentUser.role == .fieldKeeper ? currentUser.uid : "",
+            lastMessage: "",
+            lastUpdated: Date(),
+            unreadCount: 0
+        )
+
+        try? await db.collection("chatRooms")
+            .document(roomId)
+            .setData(room.toDictionary(), merge: true)
+
+        return roomId
+    }
+
     func fetchMyChatRooms(userId: String) async {
         isLoading = true
         do {

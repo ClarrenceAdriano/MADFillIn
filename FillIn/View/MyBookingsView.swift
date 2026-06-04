@@ -11,6 +11,7 @@ struct MyBookingsView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @StateObject private var bookingVM = BookingViewModel()
     @State private var selectedFilter: BookingStatus? = nil
+    @State private var chatBooking: Booking? = nil
 
     var filtered: [Booking] {
         guard let f = selectedFilter else { return bookingVM.myBookings }
@@ -78,7 +79,9 @@ struct MyBookingsView: View {
                     ScrollView {
                         LazyVStack(spacing: 14) {
                             ForEach(filtered) { booking in
-                                BookingCard(booking: booking) {
+                                BookingCard(booking: booking, onChat: {
+                                    chatBooking = booking
+                                }) {
                                     Task { await bookingVM.cancelBooking(booking) }
                                 }
                             }
@@ -91,11 +94,19 @@ struct MyBookingsView: View {
             }
         }
         .task { await bookingVM.fetchMyBookings() }
+        .sheet(item: $chatBooking) { booking in
+            if let user = authVM.currentUser {
+                NavigationStack {
+                    ChatView(field: nil, booking: booking, currentUser: user)
+                }
+            }
+        }
     }
 }
 
 struct BookingCard: View {
     var booking: Booking
+    var onChat: () -> Void
     var onCancel: () -> Void
     @State private var showCancel = false
 
@@ -158,6 +169,20 @@ struct BookingCard: View {
                 }
                 Spacer()
                 if booking.status == .confirmed {
+                    Button(action: onChat) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "bubble.left.fill")
+                                .font(.caption)
+                            Text("Chat")
+                                .font(.caption.bold())
+                        }
+                        .foregroundColor(Color(hex: "3B82F6"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color(hex: "3B82F6").opacity(0.1))
+                        .cornerRadius(8)
+                    }
+
                     Button {
                         showCancel = true
                     } label: {

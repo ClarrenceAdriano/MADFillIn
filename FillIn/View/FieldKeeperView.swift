@@ -501,12 +501,10 @@ struct KeeperBookingsTab: View {
                 .environmentObject(authVM)
         }
         .sheet(item: $chatBooking) { booking in
-            if let field = keeperVM.myFields.first(where: { $0.id == booking.fieldId }),
-               let user = authVM.currentUser {
-                ChatView(
-                    field: field,
-                    currentUser: user
-                )
+            if let user = authVM.currentUser {
+                NavigationStack {
+                    ChatView(field: nil, booking: booking, currentUser: user)
+                }
             }
         }
     }

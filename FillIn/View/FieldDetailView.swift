@@ -156,7 +156,7 @@ struct FieldDetailView: View {
         .fullScreenCover(isPresented: $showChat) {
             if let user = authVM.currentUser {
                 NavigationStack {
-                    ChatView(field: field, currentUser: user)
+                    ChatView(field: field, booking: nil, currentUser: user)
                 }
             }
         }

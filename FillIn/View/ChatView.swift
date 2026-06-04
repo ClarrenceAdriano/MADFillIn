@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct ChatView: View {
-    var field: Field
+    var field: Field?
+    var booking: Booking?
     var currentUser: FillInUser
 
     @StateObject private var chatVM = ChatViewModel()
@@ -38,10 +39,10 @@ struct ChatView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(field.name)
+                        Text(chatTitle)
                             .font(.headline)
                             .foregroundColor(.white)
-                        Text("Field Keeper")
+                        Text(chatSubtitle)
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.4))
                     }
@@ -159,7 +160,11 @@ struct ChatView: View {
         }
         .navigationBarHidden(true)
         .task {
-            chatRoomId = await chatVM.openChatRoom(field: field, user: currentUser)
+            if let booking = booking {
+                chatRoomId = await chatVM.openChatRoomForBooking(booking: booking, currentUser: currentUser)
+            } else if let field = field {
+                chatRoomId = await chatVM.openChatRoom(field: field, user: currentUser)
+            }
             chatVM.listenToMessages(chatRoomId: chatRoomId)
         }
         .onDisappear {
@@ -176,16 +181,31 @@ struct ChatView: View {
         ]
     }
 
+    var chatTitle: String {
+        if let booking = booking {
+            return booking.fieldName
+        }
+        return field?.name ?? "Chat"
+    }
+
+    var chatSubtitle: String {
+        if let booking = booking {
+            return "\(booking.dateFormatted) · \(booking.timeFormatted)"
+        }
+        return "Field Keeper"
+    }
+
     func sendMessage() {
         let trimmed = messageText.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, !chatRoomId.isEmpty else { return }
         messageText = ""
+        let role: MessageSender = currentUser.role == .fieldKeeper ? .fieldKeeper : .user
         Task {
             await chatVM.sendMessage(
                 chatRoomId: chatRoomId,
                 text: trimmed,
                 sender: currentUser,
-                role: .user
+                role: role
             )
         }
     }
@@ -290,5 +310,5 @@ struct RoundedCorner: Shape {
         role: .user
     )
 
-    ChatView(field: dummyField, currentUser: dummyUser)
+    ChatView(field: dummyField, booking: nil, currentUser: dummyUser)
 }
