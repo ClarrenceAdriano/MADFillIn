@@ -14,6 +14,7 @@ import Combine
 class BookingViewModel: ObservableObject {
     @Published var myBookings: [Booking] = []
     @Published var availableSlots: [Int] = []
+    @Published var bookedHours: [Int] = []
     @Published var isLoading = false
     @Published var bookingSuccess = false
     @Published var errorMessage = ""
@@ -35,14 +36,20 @@ class BookingViewModel: ObservableObject {
 
     func fetchAvailableSlots(fieldId: String, date: Date, openHour: Int, closeHour: Int) async {
         do {
-            availableSlots = try await service.fetchAvailableSlots(
+            let slots = try await service.fetchAvailableSlots(
                 fieldId: fieldId,
                 date: date,
                 openHour: openHour,
                 closeHour: closeHour
             )
+            let booked = try await service.fetchBookedHours(fieldId: fieldId, date: date)
+            availableSlots = slots
+            bookedHours = booked
         } catch {
+            // On error, show all slots as available (fallback) but log the error
+            print("[BookingVM] fetchAvailableSlots error: \(error)")
             availableSlots = Array(openHour..<closeHour)
+            bookedHours = []
         }
     }
 
@@ -59,6 +66,30 @@ class BookingViewModel: ObservableObject {
         let duration = endHour - startHour
         let totalPrice = field.pricePerHour * duration
         let bookingId = UUID().uuidString
+
+        // Server-side conflict check — prevent double-booking
+        do {
+            let currentlyBooked = try await service.fetchBookedHours(fieldId: field.id, date: date)
+            let selectedHours = Array(startHour..<endHour)
+            if selectedHours.contains(where: { currentlyBooked.contains($0) }) {
+                errorMessage = "Jam yang kamu pilih sudah dibooking. Silakan pilih jam lain."
+                showError = true
+                await fetchAvailableSlots(
+                    fieldId: field.id,
+                    date: date,
+                    openHour: field.openHour,
+                    closeHour: field.closeHour
+                )
+                isLoading = false
+                return
+            }
+        } catch {
+            // If the conflict check itself fails, block the booking to be safe
+            errorMessage = "Tidak dapat memverifikasi ketersediaan jam. Coba lagi."
+            showError = true
+            isLoading = false
+            return
+        }
 
         let booking = Booking(
             id: bookingId,

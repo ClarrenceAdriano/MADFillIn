@@ -14,7 +14,6 @@ struct FieldDetailView: View {
     @Environment(\.dismiss) var dismiss
     @State private var region: MKCoordinateRegion
     @State private var showBooking = false
-    @State private var showChat = false
     
     init(field: Field) {
         self.field = field
@@ -87,24 +86,6 @@ struct FieldDetailView: View {
                             StatBadge(icon: "sportscourt", label: "Sport", value: field.sport.rawValue)
                         }
                         
-                        Divider().background(Color.white.opacity(0.1))
-                        
-                        Button {
-                            showChat = true
-                        } label: {
-                            Label("Chat with Field Keeper", systemImage: "bubble.left.and.bubble.right")
-                                .font(.subheadline.bold())
-                                .foregroundColor(Color(hex: "3B82F6"))
-                                .frame(maxWidth: .infinity)
-                                .padding(14)
-                                .background(Color(hex: "3B82F6").opacity(0.1))
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color(hex: "3B82F6").opacity(0.3), lineWidth: 1)
-                                )
-                        }
-                        
                         Button {
                             let urlStr = "maps://?ll=\(field.latitude),\(field.longitude)&q=\(field.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
                             if let url = URL(string: urlStr), UIApplication.shared.canOpenURL(url) {
@@ -152,13 +133,6 @@ struct FieldDetailView: View {
         .sheet(isPresented: $showBooking) {
             BookingView(field: field)
                 .environmentObject(authVM)
-        }
-        .fullScreenCover(isPresented: $showChat) {
-            if let user = authVM.currentUser {
-                NavigationStack {
-                    ChatView(field: field, booking: nil, currentUser: user)
-                }
-            }
         }
     }
     

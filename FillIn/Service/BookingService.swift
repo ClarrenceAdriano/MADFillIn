@@ -32,17 +32,46 @@ class BookingService {
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
+        // Query only by fieldId to avoid requiring a Firestore composite index.
+        // Date filtering is done in-memory.
         let snapshot = try await db.collection("bookings")
             .whereField("fieldId", isEqualTo: fieldId)
-            .whereField("date", isGreaterThanOrEqualTo: Timestamp(date: startOfDay))
-            .whereField("date", isLessThan: Timestamp(date: endOfDay))
             .getDocuments()
 
         let bookedHours = snapshot.documents
             .compactMap { Booking.fromDictionary($0.data(), id: $0.documentID) }
+            .filter { booking in
+                booking.status != .cancelled &&
+                booking.date >= startOfDay &&
+                booking.date < endOfDay
+            }
             .flatMap { booking in (booking.startHour..<booking.endHour).map { $0 } }
 
         return (openHour..<closeHour).filter { !bookedHours.contains($0) }
+    }
+
+    func fetchBookedHours(
+        fieldId: String,
+        date: Date
+    ) async throws -> [Int] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        // Query only by fieldId to avoid requiring a Firestore composite index.
+        // Date filtering is done in-memory.
+        let snapshot = try await db.collection("bookings")
+            .whereField("fieldId", isEqualTo: fieldId)
+            .getDocuments()
+
+        return snapshot.documents
+            .compactMap { Booking.fromDictionary($0.data(), id: $0.documentID) }
+            .filter { booking in
+                booking.status != .cancelled &&
+                booking.date >= startOfDay &&
+                booking.date < endOfDay
+            }
+            .flatMap { booking in (booking.startHour..<booking.endHour).map { $0 } }
     }
 
     func createBooking(_ booking: Booking) async throws {

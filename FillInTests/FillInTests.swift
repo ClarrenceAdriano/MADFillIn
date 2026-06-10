@@ -39,7 +39,7 @@ final class FillInTests: XCTestCase {
         XCTAssertEqual(restored?.name, field.name)
         
         var invalidDict = dict
-        invalidDict.removeValue(forKey: "name")D
+        invalidDict.removeValue(forKey: "name")
         XCTAssertNil(Field.fromDictionary(invalidDict, id: "test"))
     }
 

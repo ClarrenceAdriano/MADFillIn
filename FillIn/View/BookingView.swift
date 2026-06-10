@@ -97,13 +97,8 @@ struct BookingView: View {
                 VStack(spacing: 0) {
                     Divider().background(Color.white.opacity(0.08))
                     Button {
-                        withAnimation(.spring()) {
-                            if step < 3 { step += 1 }
-                            else {
-                                Task { await submitBooking() }
-                            }
-                        }
-                        if step == 2 {
+                        if step == 1 {
+                            // Fetch slots first, then advance to step 2
                             Task {
                                 await bookingVM.fetchAvailableSlots(
                                     fieldId: field.id,
@@ -111,6 +106,12 @@ struct BookingView: View {
                                     openHour: field.openHour,
                                     closeHour: field.closeHour
                                 )
+                                withAnimation(.spring()) { step = 2 }
+                            }
+                        } else {
+                            withAnimation(.spring()) {
+                                if step < 3 { step += 1 }
+                                else { Task { await submitBooking() } }
                             }
                         }
                     } label: {
@@ -165,20 +166,43 @@ struct BookingView: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionTitle(title: "Select Time Slot", icon: "clock")
 
-            if bookingVM.availableSlots.isEmpty {
-                Text("Loading slots...")
-                    .foregroundColor(.white.opacity(0.4))
+            if bookingVM.availableSlots.isEmpty && bookingVM.bookedHours.isEmpty {
+                HStack(spacing: 8) {
+                    ProgressView().tint(.white.opacity(0.5))
+                    Text("Loading slots...")
+                        .foregroundColor(.white.opacity(0.4))
+                }
             } else {
+                // Legend
+                HStack(spacing: 16) {
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.08)).frame(width: 16, height: 16)
+                        Text("Available").font(.caption2).foregroundColor(.white.opacity(0.5))
+                    }
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 4).fill(Color.red.opacity(0.25)).frame(width: 16, height: 16)
+                        Text("Booked").font(.caption2).foregroundColor(.white.opacity(0.5))
+                    }
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 4).fill(Color(hex: "3B82F6")).frame(width: 16, height: 16)
+                        Text("Selected").font(.caption2).foregroundColor(.white.opacity(0.5))
+                    }
+                }
+
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Start Time")
                         .font(.caption.bold())
                         .foregroundColor(.white.opacity(0.5))
+                    let allStartHours = Array(field.openHour..<field.closeHour)
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
-                        ForEach(bookingVM.availableSlots.dropLast(), id: \.self) { hour in
+                        ForEach(allStartHours, id: \.self) { hour in
+                            let isBooked = bookingVM.bookedHours.contains(hour)
+                            let isDisabledByEnd = endHour != nil && hour >= (endHour ?? 0)
                             TimeSlotButton(
                                 hour: hour,
                                 isSelected: startHour == hour,
-                                isDisabled: endHour != nil && hour >= (endHour ?? 0)
+                                isDisabled: isBooked || isDisabledByEnd,
+                                isBooked: isBooked
                             ) {
                                 startHour = hour
                                 if let end = endHour, end <= hour { endHour = nil }
@@ -192,12 +216,16 @@ struct BookingView: View {
                         Text("End Time")
                             .font(.caption.bold())
                             .foregroundColor(.white.opacity(0.5))
+                        let allEndHours = Array(field.openHour...field.closeHour).filter { $0 > (startHour ?? 0) }
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
-                            ForEach(bookingVM.availableSlots.filter { $0 > (startHour ?? 0) }, id: \.self) { hour in
+                            ForEach(allEndHours, id: \.self) { hour in
+                                // End hour is blocked if ANY hour in [startHour..<hour] is booked
+                                let rangeBooked = (startHour! ..< hour).contains { bookingVM.bookedHours.contains($0) }
                                 TimeSlotButton(
                                     hour: hour,
                                     isSelected: endHour == hour,
-                                    isDisabled: false
+                                    isDisabled: rangeBooked,
+                                    isBooked: rangeBooked
                                 ) {
                                     endHour = hour
                                 }
@@ -289,7 +317,12 @@ struct BookingView: View {
     var canContinue: Bool {
         switch step {
         case 1: return true
-        case 2: return startHour != nil && endHour != nil && duration > 0
+        case 2:
+            guard let start = startHour, let end = endHour, end > start else { return false }
+            // Block if any selected hour is already booked
+            let selectedRange = Array(start..<end)
+            let hasConflict = selectedRange.contains(where: { bookingVM.bookedHours.contains($0) })
+            return !hasConflict
         case 3: return true
         default: return false
         }
@@ -331,17 +364,35 @@ struct TimeSlotButton: View {
     var hour: Int
     var isSelected: Bool
     var isDisabled: Bool
+    var isBooked: Bool = false
     var onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            Text(String(format: "%02d:00", hour))
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(isSelected ? .white : isDisabled ? .white.opacity(0.2) : .white.opacity(0.7))
-                .frame(maxWidth: .infinity)
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(
+                        isSelected ? Color(hex: "3B82F6") :
+                        isBooked  ? Color.red.opacity(0.2) :
+                                    Color.white.opacity(0.08)
+                    )
+                VStack(spacing: 2) {
+                    Text(String(format: "%02d:00", hour))
+                        .font(.system(size: 11, weight: .semibold))
+                        .strikethrough(isBooked)
+                        .foregroundColor(
+                            isSelected ? .white :
+                            isBooked   ? Color.red.opacity(0.6) :
+                                         .white.opacity(0.7)
+                        )
+                    if isBooked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 8))
+                            .foregroundColor(Color.red.opacity(0.5))
+                    }
+                }
                 .padding(.vertical, 10)
-                .background(isSelected ? Color(hex: "3B82F6") : Color.white.opacity(0.08))
-                .cornerRadius(10)
+            }
         }
         .disabled(isDisabled)
     }
